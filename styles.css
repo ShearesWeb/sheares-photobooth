@@ -392,8 +392,8 @@ body[data-chrome="wood"] .desk::before { opacity: 0.15; }
   font-size: 14px; line-height: 18px; text-align: center;
   cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.35);
   display: block;
-  opacity: 0.92;
-  transition: opacity 0.15s, transform 0.15s, background 0.15s;
+  opacity: 1;
+  transition: transform 0.15s, background 0.15s;
   user-select: none;
   z-index: 2;
   font-weight: 700;
@@ -402,6 +402,22 @@ body[data-chrome="wood"] .desk::before { opacity: 0.15; }
 .sticker:hover .sticker-delete,
 .sticker.selected .sticker-delete { opacity: 1; transform: scale(1.12); }
 .sticker-delete:hover { background: #d63b3b; color: #fff; border-color: #d63b3b; }
+
+.sticker-resize {
+  position: absolute; bottom: -10px; right: -10px;
+  width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; color: var(--ink);
+  border: 2px solid var(--ink);
+  font-size: 14px; line-height: 18px; text-align: center;
+  cursor: nwse-resize; box-shadow: 0 2px 6px rgba(0,0,0,0.35);
+  display: none;
+  user-select: none; touch-action: none;
+  z-index: 2; font-weight: 700;
+  pointer-events: auto;
+}
+.sticker:hover .sticker-resize,
+.sticker.selected .sticker-resize { display: block; }
+.sticker-resize:hover { background: var(--sw); color: #fff; border-color: var(--sw); }
 
 /* Capture controls under viewfinder */
 .capture-controls {
@@ -442,6 +458,10 @@ body[data-chrome="wood"] .desk::before { opacity: 0.15; }
   z-index: 30;
   pointer-events: none;
   animation: countpop 1s ease-out;
+  line-height: 1;
+}
+.viewfinder.format-strip .countdown {
+  font-size: clamp(56px, 9vw, 110px);
 }
 @keyframes countpop {
   0% { transform: scale(2.5); opacity: 0; }

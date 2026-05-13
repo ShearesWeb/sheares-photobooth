@@ -58,6 +58,7 @@ window.SCENES = {
         <text x="0" y="0" text-anchor="middle" font-family="Caveat,cursive" font-weight="700" font-size="30" fill="#a8542b" opacity="0.75">~ est. 2026 ~</text>
       </g>`,
     tint: null, tintBlend: null,
+    anchor: 'top',
   },
 
   academica: {
@@ -178,6 +179,7 @@ window.SCENES = {
         <text x="0" y="20" text-anchor="middle" font-family="Caveat,cursive" font-weight="700" font-size="22" fill="#3a1a08">harder!</text>
       </g>`,
     tint: null, tintBlend: null,
+    anchor: 'bottom',
   },
 
   pond: {
@@ -308,6 +310,7 @@ window.SCENES = {
         <ellipse cx="500" cy="940" rx="120" ry="6"/>
       </g>`,
     tint: null, tintBlend: null,
+    anchor: 'bottom',
   },
 
   c5: {
@@ -348,6 +351,7 @@ window.SCENES = {
       </g>`,
     tint: 'rgba(255, 30, 80, 0.18)',
     tintBlend: 'screen',
+    anchor: 'center',
   },
 
   dee: {
@@ -512,6 +516,7 @@ window.SCENES = {
         <text x="0" y="16" text-anchor="middle" font-family="Fredoka,sans-serif" font-weight="700" font-size="38" fill="#16a34a" letter-spacing="3">DEE CHAMPIONS</text>
       </g>`,
     tint: null, tintBlend: null,
+    anchor: 'bottom',
   },
 
   elmo: {
@@ -611,6 +616,7 @@ window.SCENES = {
         <path d="M 924 680 L 927 688 L 936 691 L 927 694 L 924 702 L 921 694 L 912 691 L 921 688 Z"/>
       </g>`,
     tint: null, tintBlend: null,
+    anchor: 'center',
   },
 };
 
@@ -621,7 +627,12 @@ window.SCENES = {
 window.buildSceneSvg = function(sceneId, w = 1024, h = 1024) {
   const scene = window.SCENES[sceneId];
   if (!scene) return null;
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 1024 1024" preserveAspectRatio="xMidYMid slice">${scene.svg}</svg>`;
+  const anchor = scene.anchor || 'center';
+  const par =
+    anchor === 'top' ? 'xMidYMin slice' :
+    anchor === 'bottom' ? 'xMidYMax slice' :
+    'xMidYMid slice';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 1024 1024" preserveAspectRatio="${par}">${scene.svg}</svg>`;
 };
 
 window.sceneCss = function(sceneId, w = 1024, h = 1024) {

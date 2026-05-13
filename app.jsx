@@ -89,6 +89,7 @@ const uuid = () => Math.random().toString(36).slice(2, 10);
 // =====================================================
 function Sticker({ s, selected, onSelect, onUpdate, onDelete, containerRef }) {
   const startedRef = useRef(null);
+  const resizeRef = useRef(null);
 
   const onPointerDown = (e) => {
     e.stopPropagation();
@@ -119,6 +120,37 @@ function Sticker({ s, selected, onSelect, onUpdate, onDelete, containerRef }) {
     startedRef.current = null;
   };
 
+  // Resize handle — scale based on pointer distance from sticker center
+  const onResizeDown = (e) => {
+    e.stopPropagation(); e.preventDefault();
+    onSelect(s.id);
+    const stickerEl = e.currentTarget.parentElement;
+    const r = stickerEl.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const startDist = Math.hypot(e.clientX - cx, e.clientY - cy) || 1;
+    resizeRef.current = {
+      cx, cy, startDist, origScale: s.scale, origRot: s.rot,
+      startAngle: Math.atan2(e.clientY - cy, e.clientX - cx),
+      handle: e.currentTarget
+    };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+  };
+  const onResizeMove = (e) => {
+    if (!resizeRef.current) return;
+    const { cx, cy, startDist, origScale, origRot, startAngle } = resizeRef.current;
+    const dist = Math.hypot(e.clientX - cx, e.clientY - cy);
+    const nextScale = Math.max(0.3, Math.min(3.5, origScale * (dist / startDist)));
+    const ang = Math.atan2(e.clientY - cy, e.clientX - cx);
+    const dDeg = (ang - startAngle) * 180 / Math.PI;
+    onUpdate(s.id, { scale: nextScale, rot: origRot + dDeg });
+  };
+  const onResizeUp = (e) => {
+    if (!resizeRef.current) return;
+    try { resizeRef.current.handle.releasePointerCapture(e.pointerId); } catch {}
+    resizeRef.current = null;
+  };
+
   const isText = s.kind === 'text';
   const isSvg = s.kind === 'svg';
   const isImg = s.kind === 'img';
@@ -136,7 +168,7 @@ function Sticker({ s, selected, onSelect, onUpdate, onDelete, containerRef }) {
         color: s.color,
         fontFamily: isText ? 'Caveat, cursive' : 'inherit',
         fontWeight: isText ? 700 : 400,
-        background: isText ? 'rgba(255,255,255,0.92)' : 'transparent',
+        background: isText ? '#fff' : 'transparent',
         borderRadius: isText ? '999px' : 0,
         padding: isText ? '4px 14px' : 0,
         border: isText ? `2px solid ${s.color}` : 'none',
@@ -158,6 +190,13 @@ function Sticker({ s, selected, onSelect, onUpdate, onDelete, containerRef }) {
         onPointerDown={(e) => { e.stopPropagation(); e.preventDefault(); onDelete(s.id); }}
         onClick={(e) => { e.stopPropagation(); }}
         title="remove">×</span>
+      <span
+        className="sticker-resize"
+        onPointerDown={onResizeDown}
+        onPointerMove={onResizeMove}
+        onPointerUp={onResizeUp}
+        onPointerCancel={onResizeUp}
+        title="resize / rotate">⤡</span>
     </div>);
 
 }
@@ -178,8 +217,10 @@ function Viewfinder({
   const appliedFilter = scaleFilter(filter?.css || '', intensity);
   const sceneBg = window.sceneCss ? window.sceneCss(filter?.id) : '';
 
-  const SceneOverlay = ({ show }) =>
-  show && sceneBg ? <div className="scene-overlay" style={{ backgroundImage: sceneBg }}></div> : null;
+  const SceneOverlay = ({ show, sceneId }) => {
+    const bg = sceneId && window.sceneCss ? window.sceneCss(sceneId) : sceneBg;
+    return show && bg ? <div className="scene-overlay" style={{ backgroundImage: bg }}></div> : null;
+  };
 
   const renderStickerLayer = () =>
   mode === 'reviewing' &&
@@ -210,20 +251,22 @@ function Viewfinder({
           onMouseDown={() => setSelectedStickerId(null)}>
           
           {[0, 1, 2, 3].map((i) => {
-            const hasImage = mode === 'reviewing' ? !!capturedFrames[i] : i === 0 && camStatus === 'live';
+            const cap = capturedFrames[i];
+            const isCaptured = !!cap;
+            const nextIdx = capturedFrames.length;
+            const isLive = !isCaptured && mode !== 'reviewing' && i === nextIdx && camStatus === 'live';
+            const hasImage = isCaptured || isLive;
+            const cellFilterId = isCaptured ? cap.filterId : filter?.id;
             return (
               <div
                 key={i}
                 className="cam-inner"
-                data-filter={filter?.id}
+                data-filter={cellFilterId}
                 style={{ '--applied-filter': appliedFilter, position: 'relative' }}>
-                
-              {mode === 'reviewing' ?
-                capturedFrames[i] ?
-                <img className="captured" src={capturedFrames[i]} alt="captured frame" /> :
-                null :
 
-                i === 0 ?
+              {isCaptured ?
+                <img className="captured" src={cap.url} alt="captured frame" /> :
+                isLive ?
                 <video ref={attachVideo} autoPlay playsInline muted /> :
                 <div style={{
                   position: 'absolute', inset: 0,
@@ -231,8 +274,8 @@ function Viewfinder({
                   background: `linear-gradient(135deg, var(--paper-edge), var(--paper-deep))`,
                   color: 'var(--ink-soft)', fontFamily: 'Caveat,cursive', fontSize: 28
                 }}>frame {i + 1}</div>
-                }
-              <SceneOverlay show={hasImage} />
+              }
+              {/* Strip mode: lens filter only, skip scene SVG add-ons */}
               {capturing && countdownValue && countdownValue.frame === i &&
                 <div className="countdown" key={`cd-${i}-${countdownValue.value}`}>{countdownValue.value}</div>
                 }
@@ -240,8 +283,8 @@ function Viewfinder({
             </div>);
 
           })}
-          {/* Sticker layer overlays the whole strip during review */}
-          {mode === 'reviewing' &&
+          {/* Sticker layer overlays the whole strip during review and between shots */}
+          {mode !== 'live' &&
           <div
             className="sticker-layer"
             style={{ pointerEvents: 'auto', position: 'absolute', inset: 0 }}>
@@ -259,7 +302,7 @@ function Viewfinder({
             </div>
           }
           {/* Curtain over first cell only */}
-          {camStatus !== 'live' && mode === 'live' &&
+          {camStatus !== 'live' && mode === 'live' && capturedFrames.length === 0 &&
           <div className="curtain" style={{ position: 'absolute', inset: 0 }}>
               <div className="lion-wrap"><img src="assets/shweb-logo.png" alt="lion mascot" /></div>
               <div className="big">Welcome!</div>
@@ -311,11 +354,13 @@ function Viewfinder({
           </div>
         }
         {mode === 'reviewing' && capturedFrames[0] ?
-        <img className="captured" src={capturedFrames[0]} alt="captured" /> :
+        <img className="captured" src={capturedFrames[0].url} alt="captured" /> :
 
         <video ref={attachVideo} autoPlay playsInline muted />
         }
-        <SceneOverlay show={mode === 'reviewing' ? !!capturedFrames[0] : camStatus === 'live'} />
+        <SceneOverlay
+          show={mode === 'reviewing' ? !!capturedFrames[0] : camStatus === 'live'}
+          sceneId={mode === 'reviewing' && capturedFrames[0] ? capturedFrames[0].filterId : filter?.id} />
         {capturing && countdownValue && <div className="countdown" key={`cd-${countdownValue.value}`}>{countdownValue.value}</div>}
         {flashing && <div className="flash-overlay" key={`fl-${flashing.t}`}></div>}
 
@@ -455,30 +500,39 @@ function App() {
     if (camStatus !== 'live' || capturing) return;
     setCapturing(true);
     setSelectedStickerId(null);
-    const frameCount = format === 'polaroid' ? 1 : 4;
-    const frames = [];
     const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-    for (let f = 0; f < frameCount; f++) {
-      for (let n = 3; n >= 1; n--) {
-        setCountdownValue({ value: n, frame: f });
-        await sleep(820);
-      }
-      setCountdownValue(null);
-      setFlashing({ t: Date.now(), frame: f });
-      await sleep(80);
-      const url = captureFrame();
-      if (url) frames.push(url);
-      await sleep(380);
-      setFlashing(null);
-      if (f < frameCount - 1) await sleep(280);
+    const frameIdx = format === 'strip' ? capturedFrames.length : 0;
+
+    for (let n = 3; n >= 1; n--) {
+      setCountdownValue({ value: n, frame: frameIdx });
+      await sleep(820);
+    }
+    setCountdownValue(null);
+    setFlashing({ t: Date.now(), frame: frameIdx });
+    await sleep(80);
+    const url = captureFrame();
+    await sleep(380);
+    setFlashing(null);
+
+    if (!url) {
+      setCapturing(false);
+      return;
     }
 
-    setCapturedFrames(frames);
-    setMode('reviewing');
+    const totalFrames = format === 'strip' ? 4 : 1;
+    const frameObj = { url, filterId: activeFilter, intensity: tweaks.intensity };
+    const newFrames = format === 'strip' ? [...capturedFrames, frameObj] : [frameObj];
+    setCapturedFrames(newFrames);
     setCapturing(false);
-    setCaption((prev) => window.pickCaption(activeFilter, prev));
-  }, [camStatus, capturing, format, captureFrame, activeFilter]);
+
+    if (newFrames.length >= totalFrames) {
+      setMode('reviewing');
+      setCaption((prev) => window.pickCaption(activeFilter, prev));
+    } else {
+      setMode('between');
+    }
+  }, [camStatus, capturing, format, capturedFrames, captureFrame, activeFilter, tweaks.intensity]);
 
   // ----- Sticker management -----
   const addSticker = (p) => {
@@ -520,9 +574,9 @@ function App() {
     if (!capturedFrames.length || pinning) return;
     setPinning(true);
     try {
-      const image = await composite(capturedFrames, stickers, format, caption, activeFilter);
+      const image = await composite(capturedFrames, stickers, format, caption);
       const thumb = format === 'strip'
-        ? await composite([capturedFrames[0]], [], 'polaroid', caption, activeFilter)
+        ? await composite([capturedFrames[0]], [], 'polaroid', caption)
         : image;
       const entry = await insertEntry({
         image, thumb,
@@ -551,7 +605,7 @@ function App() {
 
   const download = async () => {
     if (!capturedFrames.length) return;
-    const image = await composite(capturedFrames, stickers, format, caption, activeFilter);
+    const image = await composite(capturedFrames, stickers, format, caption);
     const a = document.createElement('a');
     a.href = image;
     a.download = `sheares-${format}-${Date.now()}.jpg`;
@@ -600,7 +654,7 @@ function App() {
         <FilterRail
           filters={FILTERS}
           active={activeFilter}
-          onSelect={(id) => mode === 'live' && setActiveFilter(id)} />
+          onSelect={(id) => mode !== 'reviewing' && setActiveFilter(id)} />
         
 
         <div className="viewfinder-wrap">
@@ -626,22 +680,29 @@ function App() {
             setCaption={setCaption} />
           
 
-          {mode === 'live' ?
+          {mode !== 'reviewing' ?
           <div className="capture-controls">
               <span style={{ fontFamily: 'Caveat,cursive', fontSize: 24, color: 'var(--ink-soft)' }}>
-                {capturing ? 'hold still ✿' : 'smile when ready ↓'}
+                {capturing ? 'hold still ✿' :
+                 mode === 'between' ? 'decorate, then snap next ↓' :
+                 'smile when ready ↓'}
               </span>
               <button
               className="shutter"
               onClick={beginCapture}
               disabled={camStatus !== 'live' || capturing}
               aria-label="capture">
-              
+
                 {capturing ? '...' : <span className="dot"></span>}
               </button>
               <span style={{ fontFamily: 'Caveat,cursive', fontSize: 24, color: 'var(--ink-soft)' }}>
-                ({format === 'strip' ? '4 frames' : '1 frame'})
+                {format === 'strip'
+                  ? `(shot ${Math.min(capturedFrames.length + 1, 4)} of 4)`
+                  : '(1 frame)'}
               </span>
+              {mode === 'between' &&
+                <button className="btn btn-outline" onClick={resetBooth} style={{ marginLeft: 8 }}>↺ start over</button>
+              }
             </div> :
 
           <div className="review-actions">
@@ -653,11 +714,11 @@ function App() {
         </div>
 
         <aside className="right-rail">
-          <FormatToggle format={format} setFormat={(f) => mode === 'live' && setFormat(f)} />
+          <FormatToggle format={format} setFormat={(f) => mode === 'live' && capturedFrames.length === 0 && setFormat(f)} />
           <ThemesCard
             chrome={tweaks.chrome}
             setChrome={(v) => setTweak('chrome', v)} />
-          <PropsPalette onAdd={addSticker} disabled={mode !== 'reviewing'} />
+          <PropsPalette onAdd={addSticker} disabled={mode === 'live'} />
           <CaptionCard
             caption={caption}
             onRegen={() => cycleCaption()}
@@ -715,7 +776,7 @@ function App() {
 // =====================================================
 // Composite captured frames + stickers + caption -> final image
 // =====================================================
-async function composite(frames, stickers, format, caption, filterId) {
+async function composite(frames, stickers, format, caption) {
   try {await document.fonts.load('48px "Caveat"');await document.fonts.load('700 64px "Caveat"');} catch {}
 
   const isStrip = format === 'strip' && frames.length === 4;
@@ -724,14 +785,22 @@ async function composite(frames, stickers, format, caption, filterId) {
   const gap = isStrip ? 6 : 0;
   const H = isStrip ? cellH * 4 + gap * 3 : 1024;
 
-  // Pre-load scene SVG as image so we can blit it per-frame
-  const sceneSvg = window.buildSceneSvg ? window.buildSceneSvg(filterId, W, cellH) : null;
-  const sceneImg = sceneSvg ? await new Promise((res) => {
-    const img = new Image();
-    img.onload = () => res(img);
-    img.onerror = () => res(null);
-    img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(sceneSvg);
-  }) : null;
+  // Pre-load scene SVG per-frame (each frame keeps the filter it was captured with)
+  const sceneCache = {};
+  const loadScene = async (filterId) => {
+    if (!filterId || !window.buildSceneSvg) return null;
+    if (sceneCache[filterId] !== undefined) return sceneCache[filterId];
+    const svg = window.buildSceneSvg(filterId, W, cellH);
+    if (!svg) { sceneCache[filterId] = null; return null; }
+    const img = await new Promise((res) => {
+      const im = new Image();
+      im.onload = () => res(im);
+      im.onerror = () => res(null);
+      im.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+    });
+    sceneCache[filterId] = img;
+    return img;
+  };
 
   const canvas = document.createElement('canvas');
   canvas.width = W;canvas.height = H;
@@ -739,20 +808,21 @@ async function composite(frames, stickers, format, caption, filterId) {
   ctx.fillStyle = '#1a1410';
   ctx.fillRect(0, 0, W, H);
 
-  const loaded = await Promise.all(frames.map((src) => new Promise((res) => {
-    const img = new Image();img.onload = () => res(img);img.onerror = () => res(null);img.src = src;
+  const loaded = await Promise.all(frames.map((f) => new Promise((res) => {
+    const img = new Image();img.onload = () => res(img);img.onerror = () => res(null);img.src = f.url;
   })));
+  const scenes = await Promise.all(frames.map((f) => loadScene(f.filterId)));
+
   if (isStrip) {
+    // Strip mode: lens filter only, no scene SVG add-ons
     loaded.forEach((img, i) => {
       if (!img) return;
       const y = i * (cellH + gap);
       ctx.drawImage(img, 0, y, W, cellH);
-      // Scene overlay per cell
-      if (sceneImg) ctx.drawImage(sceneImg, 0, y, W, cellH);
     });
   } else if (loaded[0]) {
     ctx.drawImage(loaded[0], 0, 0, W, cellH);
-    if (sceneImg) ctx.drawImage(sceneImg, 0, 0, W, cellH);
+    if (scenes[0]) ctx.drawImage(scenes[0], 0, 0, W, cellH);
   }
 
   // Pre-load any visual sticker images (SVG and img) so we can drawImage them
@@ -793,7 +863,7 @@ async function composite(frames, stickers, format, caption, filterId) {
       ctx.textAlign = 'center';ctx.textBaseline = 'middle';
       const w = ctx.measureText(s.content).width + 56;
       const h = 70;
-      ctx.fillStyle = 'rgba(255,255,255,0.92)';
+      ctx.fillStyle = '#ffffff';
       roundRect(ctx, -w / 2, -h / 2, w, h, h / 2);
       ctx.fill();
       ctx.lineWidth = 3.5;ctx.strokeStyle = s.color;ctx.stroke();
