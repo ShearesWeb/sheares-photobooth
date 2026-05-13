@@ -407,7 +407,6 @@ function App() {
   const [selectedStickerId, setSelectedStickerId] = useState(null);
 
   const [caption, setCaption] = useState('');
-  const [captionLoading, setCaptionLoading] = useState(false);
 
   const [gallery, setGallery] = useState([]);
   const [galleryOpen, setGalleryOpen] = useState(null);
@@ -478,8 +477,8 @@ function App() {
     setCapturedFrames(frames);
     setMode('reviewing');
     setCapturing(false);
-    generateCaption(frames);
-  }, [camStatus, capturing, format, captureFrame]);
+    setCaption((prev) => window.pickCaption(activeFilter, prev));
+  }, [camStatus, capturing, format, captureFrame, activeFilter]);
 
   // ----- Sticker management -----
   const addSticker = (p) => {
@@ -505,29 +504,10 @@ function App() {
     setSelectedStickerId(null);
   };
 
-  // ----- AI caption -----
-  const generateCaption = async (frames = capturedFrames) => {
+  // ----- Caption picker (filter-tagged static bank) -----
+  const cycleCaption = (frames = capturedFrames) => {
     if (!frames || frames.length === 0) return;
-    setCaptionLoading(true);
-    try {
-      const filterName = filter.name;
-      const styles = ['playful', 'nostalgic', 'pun-loving', 'dreamy', 'hype-y', 'future-shearite-coded'];
-      const style = styles[Math.floor(Math.random() * styles.length)];
-      const promptText = `Generate a short, warm, cute caption for a photo booth photo at Sheares Hall (a residential college at NUS Singapore where incoming students are called "future shearites"). Theme: "Welcome to Sheares". Filter used: "${filterName}". Format: ${format === 'strip' ? '4-up photo strip' : 'polaroid square'}. Tone: ${style}. Constraints: under 8 words, all lowercase, no period at end, can include a single cute symbol like ✦ ★ ♥ ~ but never emoji. Just output the caption text, no quotation marks, no explanation.`;
-      const result = await window.claude.complete(promptText);
-      const cleaned = (result || '').trim().replace(/^["'`]+|["'`.!]+$/g, '').toLowerCase().slice(0, 60);
-      setCaption(cleaned || 'welcome home, future shearite ✦');
-    } catch (e) {
-      const fallbacks = [
-      'welcome home, future shearite ✦',
-      'sheares stole my heart',
-      'block-' + ['a', 'b', 'c', 'd', 'e'][Math.floor(Math.random() * 5)] + ' vibes only',
-      'lions out, smiles in ★',
-      'first day of forever'];
-
-      setCaption(fallbacks[Math.floor(Math.random() * fallbacks.length)]);
-    }
-    setCaptionLoading(false);
+    setCaption((prev) => window.pickCaption(activeFilter, prev));
   };
 
   const editCaption = () => {
@@ -680,8 +660,7 @@ function App() {
           <PropsPalette onAdd={addSticker} disabled={mode !== 'reviewing'} />
           <CaptionCard
             caption={caption}
-            onRegen={() => generateCaption()}
-            regenerating={captionLoading}
+            onRegen={() => cycleCaption()}
             onEdit={editCaption}
             hasPhoto={mode === 'reviewing'} />
           

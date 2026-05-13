@@ -117,6 +117,100 @@ const PROPS = [
 ];
 const FILTER_NAMES_BY_ID = Object.fromEntries(FILTERS.map((f) => [f.id, f.name]));
 
+// ---------- Caption bank ----------
+// Per-filter pool + shared. Picker draws from filter pool + a small slice
+// of shared to keep variety. All lowercase except acronyms/letters.
+const CAPTIONS = {
+  shared: [
+    'lions out, smiles in ★',
+    'sheares szn ✦',
+    'future shearite coded',
+    'blk a-e on top',
+    'first day of forever',
+    'home, sheared ✦',
+    'we move ✦',
+    'pinned to forever',
+    'incoming shearite, certified',
+  ],
+  welcome: [
+    'welcome home, future shearite ✦',
+    'first day energy',
+    'blk a–e calling',
+    'sheares stole my heart',
+    'step into forever',
+    'future shearite era begins',
+    'orange-pilled ✦',
+    'lion mascot approves',
+    '7 storeys, 1 family',
+  ],
+  academica: [
+    'academica era ✦',
+    'studying or vibing',
+    'exam in 2 days, snap in 0',
+    'library main character',
+    'GPA: 4.0 in cuteness',
+    'philosophy major, cute minor',
+    'overdue book, on-time slay',
+    'caffeine and chaos',
+    '∫ cuteness dx = me',
+  ],
+  pond: [
+    'pond koi blessed ✦',
+    'sakura szn',
+    'zen mode activated',
+    'block b reflections',
+    'lily pad lattes',
+    'main character in a haiku',
+    'koi fish jealous',
+    'cherry blossom certified',
+    'still water, loud outfit',
+  ],
+  c5: [
+    'baddie galore ✦',
+    'wet after seeing this 💦',
+    'C5 stop it omg',
+    'main character certified',
+    "drippin' on level c5",
+    'i came, i saw, i served',
+    'shake the dorm',
+    'block c on TOP',
+    'paparazzi please',
+    'magazine cover energy',
+    '10/10 c5 baddie',
+    'unblock me i broke c5',
+  ],
+  dee: [
+    'DEE champions ✦',
+    'sports day royalty',
+    'MVP energy',
+    'trophy in hand, snack in frame',
+    'gold medal in cuteness',
+    'tropical sweat ✦',
+    'dee or die',
+    'champion, but make it cute',
+    'win conditions: this face',
+  ],
+  elmo: [
+    'elmo street nights ✦',
+    'neon dreams',
+    'hi friend ★',
+    'street wear szn',
+    'fuzzy era',
+    'open 24h, looks closed',
+    'lit by 4 colors of neon',
+    'block e knocks different',
+    'caught in a bokeh trap',
+  ],
+};
+
+function pickCaption(filterId, prev) {
+  const pool = (CAPTIONS[filterId] || [])
+    .concat(CAPTIONS.shared.slice(0, 4));
+  const choices = pool.filter((c) => c !== prev);
+  const list = choices.length ? choices : pool;
+  return list[Math.floor(Math.random() * list.length)];
+}
+
 // ---------- Sprinkles around the hero ----------
 function Sprinkles() {
   const sprinkles = [
@@ -227,23 +321,21 @@ function PropsPalette({ onAdd, disabled }) {
 }
 
 // ---------- Caption card ----------
-function CaptionCard({ caption, onRegen, regenerating, onEdit, hasPhoto }) {
+function CaptionCard({ caption, onRegen, onEdit, hasPhoto }) {
   return (
     <div className="rail-card caption-card">
       <div className="rail-title">caption ✎</div>
-      <div className="rail-sub">AI generates a caption for each take!</div>
+      <div className="rail-sub">tap to cycle filter-flavored captions.</div>
       <div className={`caption-display ${!caption ? 'empty' : ''}`}>
-        {regenerating ?
-        <span className="caption-loading"><span></span><span></span><span></span></span> :
-        caption || 'your caption appears here…'}
+        {caption || 'your caption appears here…'}
       </div>
       <div className="row">
         <button
           className="btn btn-primary"
           onClick={onRegen}
-          disabled={!hasPhoto || regenerating}
+          disabled={!hasPhoto}
           style={{ flex: 1 }}>
-          {caption ? '✨ another one' : '✨ generate'}
+          {caption ? '✨ another one' : '✨ pick one'}
         </button>
         <button
           className="btn btn-outline"
@@ -431,6 +523,6 @@ function ThemesCard({ chrome, setChrome }) {
 
 // Export to window
 Object.assign(window, {
-  FILTERS, PROPS, FILTER_NAMES_BY_ID,
+  FILTERS, PROPS, FILTER_NAMES_BY_ID, CAPTIONS, pickCaption,
   Sprinkles, FilterRail, FormatToggle, PropsPalette, CaptionCard, ThemesCard, GalleryWall, GalleryModal
 });
