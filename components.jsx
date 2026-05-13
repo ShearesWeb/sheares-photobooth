@@ -118,94 +118,77 @@ const PROPS = [
 const FILTER_NAMES_BY_ID = Object.fromEntries(FILTERS.map((f) => [f.id, f.name]));
 
 // ---------- Caption bank ----------
-// Per-filter pool + shared. Picker draws from filter pool + a small slice
-// of shared to keep variety. All lowercase except acronyms/letters.
+// Per-filter pools only. Each filter has its own dedicated set.
 const CAPTIONS = {
-  shared: [
-    'lions out, smiles in ★',
-    'sheares szn ✦',
-    'future shearite coded',
-    'blk a-e on top',
-    'first day of forever',
-    'home, sheared ✦',
-    'we move ✦',
-    'pinned to forever',
-    'incoming shearite, certified',
-  ],
   welcome: [
     'welcome home, future shearite ✦',
     'first day energy',
-    'blk a–e calling',
     'sheares stole my heart',
-    'step into forever',
     'future shearite era begins',
-    'orange-pilled ✦',
-    'lion mascot approves',
-    '7 storeys, 1 family',
+    '5 blocks, 1 family',
+    'first day of forever',
+    'sheares hall im home ✦',
+    'warning: incoming shearite',
   ],
   academica: [
-    'academica era ✦',
-    'studying or vibing',
-    'exam in 2 days, snap in 0',
-    'library main character',
-    'GPA: 4.0 in cuteness',
+    'academic comeback ✦',
+    'GPA: 5.0 in cuteness',
     'philosophy major, cute minor',
-    'overdue book, on-time slay',
-    'caffeine and chaos',
+    'overdue assignments, on-time slay vibess',
     '∫ cuteness dx = me',
+    'cite me in your thesis',
+    'plot twist: i passed',
   ],
   pond: [
-    'pond koi blessed ✦',
     'sakura szn',
     'zen mode activated',
     'block b reflections',
-    'lily pad lattes',
     'main character in a haiku',
-    'koi fish jealous',
     'cherry blossom certified',
     'still water, loud outfit',
+    'pond-side meditation',
+    'block b zen achieved',
   ],
   c5: [
     'baddie galore ✦',
-    'wet after seeing this 💦',
+    'are you wet after seeing this 💦',
     'C5 stop it omg',
-    'main character certified',
-    "drippin' on level c5",
+    "drippin' wet on c5",
     'i came, i saw, i served',
-    'shake the dorm',
     'block c on TOP',
-    'paparazzi please',
     'magazine cover energy',
     '10/10 c5 baddie',
-    'unblock me i broke c5',
+    'C5 hottest export',
+    'eat them up baddie',
+    'serving cunts, blk c style',
   ],
   dee: [
     'DEE champions ✦',
-    'sports day royalty',
     'MVP energy',
     'trophy in hand, snack in frame',
     'gold medal in cuteness',
-    'tropical sweat ✦',
     'dee or die',
-    'champion, but make it cute',
+    'champions, but make it cute',
     'win conditions: this face',
+    'first place in every category',
+    'd in dee = dominant',
+    'dee block, dee dynasty',
   ],
   elmo: [
     'elmo street nights ✦',
     'neon dreams',
     'hi friend ★',
     'street wear szn',
-    'fuzzy era',
-    'open 24h, looks closed',
-    'lit by 4 colors of neon',
+    'fuzzy era, i love furries',
     'block e knocks different',
     'caught in a bokeh trap',
+    'eee street royalty',
+    'fuzzy mascot energy',
   ],
 };
 
 function pickCaption(filterId, prev) {
-  const pool = (CAPTIONS[filterId] || [])
-    .concat(CAPTIONS.shared.slice(0, 4));
+  const pool = CAPTIONS[filterId] || CAPTIONS.welcome;
   const choices = pool.filter((c) => c !== prev);
   const list = choices.length ? choices : pool;
   return list[Math.floor(Math.random() * list.length)];
