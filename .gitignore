@@ -14,5 +14,6 @@ modal-*.png
 # OS / editor
 .DS_Store
 *.log
+*.swp
 .idea/
 .vscode/
