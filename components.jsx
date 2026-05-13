@@ -370,7 +370,9 @@ function GalleryModal({ entry, onClose, onDelete }) {
   React.useEffect(() => { setConfirmDel(false); }, [entry]);
   if (!entry) return null;
 
-  const qrTarget = entry.image.length < 1800 ? entry.image : `https://sheares.photo/p/${entry.id}`;
+  const shareUrl = new URL('share.html', window.location.href);
+  shareUrl.searchParams.set('id', entry.id);
+  const qrTarget = shareUrl.toString();
   const qrSrc = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=8&color=2a2520&bgcolor=fbf3e6&data=${encodeURIComponent(qrTarget)}`;
 
   const downloadEntry = () => {

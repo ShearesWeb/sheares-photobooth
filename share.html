@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>share ✦ sheares photo booth</title>
+<link rel="icon" type="image/png" href="assets/shweb-logo.png" />
+<link rel="stylesheet" href="tokens.css" />
+<style>
+  html, body { margin: 0; padding: 0; min-height: 100vh; }
+  body {
+    background: linear-gradient(160deg, #e27a3f 0%, #a8542b 100%);
+    color: #fff;
+    font-family: 'Quicksand', system-ui, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 28px 18px 36px;
+    min-height: 100vh;
+  }
+  .brand {
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-weight: 600; font-size: 17px;
+    letter-spacing: 0.04em;
+    opacity: 0.92;
+    margin-bottom: 4px;
+  }
+  .heading {
+    font-family: 'Caveat', cursive;
+    font-size: 30px;
+    opacity: 0.95;
+    margin-bottom: 18px;
+  }
+  .polaroid {
+    background: #fff;
+    padding: 14px 14px 64px;
+    border-radius: 3px;
+    box-shadow: 0 18px 38px -14px rgba(0,0,0,0.45);
+    max-width: 360px; width: 88vw;
+    position: relative;
+    transform: rotate(-1.5deg);
+    margin-bottom: 28px;
+  }
+  .polaroid img {
+    width: 100%; display: block;
+    border-radius: 2px;
+    background: #1a1410;
+  }
+  .polaroid .caption {
+    position: absolute; left: 14px; right: 14px; bottom: 14px;
+    text-align: center;
+    font-family: 'Caveat', cursive;
+    font-size: 26px;
+    color: #2a2520;
+    line-height: 1.1;
+  }
+  .tape {
+    position: absolute; top: -10px; left: 50%;
+    width: 88px; height: 20px;
+    background: rgba(255, 233, 168, 0.85);
+    transform: translateX(-50%) rotate(-3deg);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+    border-left: 1px dashed rgba(0,0,0,0.07);
+    border-right: 1px dashed rgba(0,0,0,0.07);
+  }
+  .share-btn {
+    appearance: none; border: 0; cursor: pointer;
+    font-family: 'Fredoka', system-ui, sans-serif;
+    font-weight: 600; font-size: 18px;
+    color: #a8542b; background: #fff;
+    padding: 16px 28px;
+    border-radius: 999px;
+    box-shadow: 0 8px 20px -4px rgba(0,0,0,0.35), 0 0 0 0 rgba(255,255,255,0.5);
+    animation: pulse 1.8s ease-out infinite;
+    transition: transform 0.12s ease, box-shadow 0.12s ease;
+  }
+  .share-btn:hover { transform: translateY(-2px); }
+  .share-btn:active { transform: translateY(1px); }
+  .share-btn:disabled {
+    opacity: 0.65; cursor: not-allowed; animation: none;
+  }
+  @keyframes pulse {
+    0%   { box-shadow: 0 8px 20px -4px rgba(0,0,0,0.35), 0 0 0 0 rgba(255,255,255,0.55); }
+    70%  { box-shadow: 0 8px 20px -4px rgba(0,0,0,0.35), 0 0 0 22px rgba(255,255,255,0); }
+    100% { box-shadow: 0 8px 20px -4px rgba(0,0,0,0.35), 0 0 0 0 rgba(255,255,255,0); }
+  }
+  .status {
+    margin-top: 18px; max-width: 320px; text-align: center;
+    font-size: 14px; line-height: 1.45; opacity: 0.92;
+    font-family: 'Quicksand', sans-serif;
+  }
+  .empty, .loading {
+    margin-top: 80px;
+    font-family: 'Caveat', cursive;
+    font-size: 28px;
+    opacity: 0.92;
+  }
+  .download-link {
+    margin-top: 14px;
+    font-family: 'Caveat', cursive;
+    font-size: 20px;
+    color: #fff;
+    text-decoration: underline;
+    text-underline-offset: 4px;
+    opacity: 0.85;
+  }
+  .footer {
+    margin-top: auto; padding-top: 28px;
+    font-family: 'Caveat', cursive;
+    font-size: 18px;
+    opacity: 0.7;
+  }
+</style>
+</head>
+<body>
+<div class="brand">SHEARES PHOTO BOOTH</div>
+<div class="heading">your snap is ready ✦</div>
+<div id="root" class="loading">loading your snap…</div>
+<div class="footer">made with ♥ at sheares hall</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script>
+(function () {
+  const params = new URLSearchParams(location.search);
+  const id = params.get('id');
+  const root = document.getElementById('root');
+
+  if (!window.APP_CONFIG) {
+    root.className = 'empty';
+    root.textContent = 'config missing.';
+    return;
+  }
+  if (!id) {
+    root.className = 'empty';
+    root.textContent = 'no snap id in url.';
+    return;
+  }
+
+  const sb = window.supabase.createClient(
+    window.APP_CONFIG.SUPABASE_URL,
+    window.APP_CONFIG.SUPABASE_ANON_KEY
+  );
+
+  sb.from('gallery').select('*').eq('id', id).single().then(({ data, error }) => {
+    if (error || !data) {
+      root.className = 'empty';
+      root.textContent = 'snap not found ~';
+      return;
+    }
+    render(data);
+  });
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[<>&"']/g, (c) => ({
+      '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+  }
+
+  function render(entry) {
+    root.className = '';
+    root.innerHTML = `
+      <div class="polaroid">
+        <span class="tape"></span>
+        <img id="photo" src="${escapeHtml(entry.image_url)}" alt="${escapeHtml(entry.caption || '')}" crossorigin="anonymous" />
+        <div class="caption">${escapeHtml(entry.caption || '✦ welcome to sheares ✦')}</div>
+      </div>
+      <button id="share" class="share-btn">📲 share to instagram</button>
+      <div id="status" class="status"></div>
+      <a id="download" class="download-link" href="${escapeHtml(entry.image_url)}" download="sheares-${escapeHtml(id)}.jpg">↓ save to device</a>
+    `;
+    wireShare(entry);
+  }
+
+  function wireShare(entry) {
+    const btn = document.getElementById('share');
+    const status = document.getElementById('status');
+    const supportsShare = !!(navigator.canShare && navigator.share);
+
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      status.textContent = '';
+      try {
+        const res = await fetch(entry.image_url, { mode: 'cors' });
+        if (!res.ok) throw new Error('image fetch failed (' + res.status + ')');
+        const blob = await res.blob();
+        const file = new File([blob], 'sheares-' + id + '.jpg', { type: 'image/jpeg' });
+
+        if (supportsShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Welcome to Sheares ✦',
+            text: entry.caption || 'snapped at sheares hall ✦'
+          });
+        } else {
+          status.innerHTML = "your browser can't share files directly. tap <b>↓ save</b> below, then open instagram and upload from your gallery.";
+        }
+      } catch (e) {
+        if (e.name === 'AbortError') {
+          status.textContent = '';
+        } else {
+          status.textContent = 'share failed: ' + (e.message || e);
+        }
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    if (!supportsShare) {
+      btn.textContent = '↓ save & open instagram';
+    }
+  }
+})();
+</script>
+</body>
+</html>
